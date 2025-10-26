@@ -1,20 +1,66 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 import sys
 
-def copyoutput(found,alg):
-    rows = 3
-    cols = 3
-    found_image = f"result_{found}_{alg}.jpg"
-    source_image = "input/full.jpeg"
-    image = cv2.imread(source_image)
-    match = cv2.imread(found_image)
-    if image is None:
-        print(f"Error: Could not load image from {image_path}")
-        return
+NUM_ROWS = 3
+NUM_COLS = 3
+PUZZLE_FILE = "input/full.jpeg"
 
-    print(f"Using {found_image}")
+def slice_image(image_path, output_dir):
+    """
+    Slices an image into a grid of (rows x cols) pieces and saves them.
+    """
+    rows = NUM_ROWS
+    cols = NUM_COLS
+    print(f"Slicing '{image_path}' into {rows} rows and {cols} columns...")
+
+    # Load the image
+    image = cv2.imread(image_path)
+
+    # Get image dimensions
+    height, width, _ = image.shape
+
+    # Calculate the height and width of each piece
+    # Use integer division to ensure whole pixels
+    piece_height = height // rows
+    piece_width = width // cols
+
+    # Create the output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"Created directory: '{output_dir}'")
+
+    # Loop through each row and column
+    count = 0
+    for r in range(rows):
+        for c in range(cols):
+            # Calculate the coordinates for the crop
+            # y1:y2, x1:x2
+            y1 = r * piece_height
+            y2 = (r + 1) * piece_height
+            x1 = c * piece_width
+            x2 = (c + 1) * piece_width
+
+            # Crop the piece from the image
+            # Note: OpenCV (and numpy) uses [y:y, x:x] indexing
+            piece = image[y1:y2, x1:x2]
+
+            # Construct the output filename
+            piece_filename = os.path.join(output_dir, f"piece_{count}.jpg")
+
+            # Save the piece
+            cv2.imwrite(piece_filename, piece)
+            count += 1
+
+    print(f"Successfully saved {count} pieces to the '{output_dir}' directory.")
+
+def copyoutput(found,alg,puzzle):
+    rows = NUM_ROWS
+    cols = NUM_COLS
+    found_image = f"result_{found}_{alg}.jpg"
+    image = cv2.imread(PUZZLE_FILE)
+    match = cv2.imread(found_image)
 
     # Get image dimensions
     height, width, _ = image.shape
@@ -34,25 +80,10 @@ def copyoutput(found,alg):
             x2 = (c + 1) * piece_width
             if count == found:
                 image[y1:y2, x1:x2] = match
-                cv2.imwrite("big_match.png", image)
+                cv2.imwrite(f"results_{puzzle}.png", image)
+                print(f"Created results_{puzzle}.png")
+                return
             count += 1
-
-def box(p,pieces: int):
-    height, width = p.shape[:2]
-    print(f"X = {height}, Y = {width} ")
-    mid_height = int(height / pieces)
-    mid_width = int(width / pieces)
-    print(f"X = {height}, Y = {width}, mid_height = {mid_height}, mid_width = {mid_width} ")
-    offset_width = 0
-    offset_height = 0
-
-    for i in range(pieces):
-        p[0:mid_height,0:mid_width]
-
-  #  box1 = p[0:mid_height,0:mid_width]
-  #  box2 = p[0:mid_height,mid_width:width]
-  #  box3 = p[mid_height:height,0:mid_width]
-  #  box4 =  p[mid_height:height,mid_width:width]
 
 
 def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
@@ -61,37 +92,16 @@ def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
     ignoring lighting differences (like shadows) by using edge detection.
     """
 
-    print(f"Loading puzzle '{puzzle_path}' and piece '{piece_path}'...")
-
-    # 1. Load images
-    # Load the main puzzle image (this is what we'll draw on)
+    print(f"Checking splitted puzzle '{puzzle_path}'")
     puzzle_color = cv2.imread(puzzle_path)
-
-   # box(puzzle_color)
-
-    if puzzle_color is None:
-        print(f"Error: Could not load puzzle image from {puzzle_path}")
-        print("Please run 'create_demo_images.py' first.")
-        return
 
     # Load the piece image
     piece_color = cv2.imread(piece_path)
-    if piece_color is None:
-        print(f"Error: Could not load piece image from {piece_path}")
-        print("Please run 'create_demo_images.py' first.")
-        return
 
     # 2. Convert to Grayscale
     # This simplifies the image to 1 channel
     puzzle_gray = cv2.cvtColor(puzzle_color, cv2.COLOR_BGR2GRAY)
     piece_gray = cv2.cvtColor(piece_color, cv2.COLOR_BGR2GRAY)
-
-
-    # 3. Use Canny Edge Detection
-    # This is the key step to ignore shadows!
-    # We find the *outlines* of features, which are not affected
-    # by simple brightness changes.
-    # The threshold values (50, 200) may need tuning for real photos.
 
     match alg:
         case "TM":
@@ -164,58 +174,35 @@ def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
         if max_val < 0.058:
             return 0
 
-
-
-
     # 6.5. Save the output image
     output_filename = f"result_{i}_{alg}.jpg"
     cv2.imwrite(output_filename, puzzle_color)
     print(f"\nResult image saved as '{output_filename}'")
     return max_val
 
-    # 7. Display the result
-    # We use matplotlib to display the image in a window.
-    # OpenCV loads images as BGR, but matplotlib expects RGB,
-    # so we must convert the color.
-    plt.figure(figsize=(12, 8))
-    plt.imshow(cv2.cvtColor(puzzle_color, cv2.COLOR_BGR2RGB))
-    plt.title(f"Found Piece at {top_left} (Score: {max_val:.2f})")
-    plt.axis('off') # Hide axes
-
-    # Also show the intermediate edge-detected images to see how it works
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.imshow(puzzle_edges, cmap='gray')
-    plt.title("Puzzle Edges")
-    plt.axis('off')
-
-    plt.subplot(1, 2, 2)
-    plt.imshow(piece_edges, cmap='gray')
-    plt.title("Piece Edges")
-    plt.axis('off')
-    plt.savefig(f"myplot_{i}.png")
-    # plt.show()
-
 
 if __name__ == "__main__":
-    # These are the files generated by the other script
-    PIECE_FILE = "input/nobg/konijn.png"
-    found = False
+    piece_file = "input/nobg/konijn.png"
     alg = "TM"
     if (len(sys.argv) > 1) and sys.argv[1] in ["BF","SF","TM"]:
         alg = sys.argv[1]
 
     results = {}
-    print(f"Alg = {alg}")
-    for i in range(9):
-        res = find_puzzle_piece(f"puzzle_pieces/piece_{i}.jpg",PIECE_FILE,i,alg)
+    print(f"Puzzle file:{PUZZLE_FILE}\nPiece file: {piece_file}\nMatching algorithm: {alg}\n")
+    f = os.path.basename(PUZZLE_FILE)
+    file_name,_ = os.path.splitext(f)
+    piece_dir = f"puzzle_pieces/{file_name}/"
+    if not os.path.exists(piece_dir):
+        slice_image(PUZZLE_FILE,piece_dir)
+
+    for i in range(NUM_COLS * NUM_ROWS):
+        res = find_puzzle_piece(f"{piece_dir}piece_{i}.jpg",piece_file,i,alg)
         if res > 0:
             results[i] = res
-            found = True
-    if not found:
-        print(f"No results found for {PIECE_FILE}")
+    if len(results) == 0:
+        print(f"No results found for {piece_file}")
     else:
         val_based_rev = {k: v for k, v in sorted(results.items(), key=lambda item: item[1], reverse=True)}
         res = next(iter(val_based_rev))
-        print(f"Best match for {PIECE_FILE} found in puzzle_pieces/piece_{res}.jpg (score: {val_based_rev[res]}) with algo {alg} ")
-        copyoutput(res,alg)
+        print(f"Best match for {piece_file} found in {piece_dir}piece_{res}.jpg (score: {val_based_rev[res]}) with algo {alg} ")
+        copyoutput(res,alg,file_name)
