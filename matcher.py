@@ -7,29 +7,17 @@ NUM_ROWS = 3
 NUM_COLS = 3
 PUZZLE_FILE = "input/full.jpeg"
 
-def slice_image(image_path, output_dir):
+def slice_image(image_path: str, output_dir: str):
     """
     Slices an image into a grid of (rows x cols) pieces and saves them.
     """
     rows = NUM_ROWS
     cols = NUM_COLS
     print(f"Slicing '{image_path}' into {rows} rows and {cols} columns...")
-
-    # Load the image
     image = cv2.imread(image_path)
-
-    # Get image dimensions
     height, width, _ = image.shape
-
-    # Calculate the height and width of each piece
-    # Use integer division to ensure whole pixels
     piece_height = height // rows
     piece_width = width // cols
-
-    # Create the output directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        print(f"Created directory: '{output_dir}'")
 
     # Loop through each row and column
     count = 0
@@ -41,32 +29,22 @@ def slice_image(image_path, output_dir):
             y2 = (r + 1) * piece_height
             x1 = c * piece_width
             x2 = (c + 1) * piece_width
-
-            # Crop the piece from the image
-            # Note: OpenCV (and numpy) uses [y:y, x:x] indexing
             piece = image[y1:y2, x1:x2]
 
-            # Construct the output filename
             piece_filename = os.path.join(output_dir, f"piece_{count}.jpg")
-
-            # Save the piece
             cv2.imwrite(piece_filename, piece)
             count += 1
 
     print(f"Successfully saved {count} pieces to the '{output_dir}' directory.")
 
-def copyoutput(found,alg,puzzle):
+def copyoutput(found: str,alg: str,puzzle: str,piecename: str):
     rows = NUM_ROWS
     cols = NUM_COLS
-    found_image = f"result_{found}_{alg}.jpg"
+    found_image = f"{puzzle}/matches/{piecename}/result_{found}_{alg}.jpg"
     image = cv2.imread(PUZZLE_FILE)
     match = cv2.imread(found_image)
-
-    # Get image dimensions
     height, width, _ = image.shape
 
-    # Calculate the height and width of each piece
-    # Use integer division to ensure whole pixels
     piece_height = height // rows
     piece_width = width // cols
     count = 0
@@ -80,13 +58,13 @@ def copyoutput(found,alg,puzzle):
             x2 = (c + 1) * piece_width
             if count == found:
                 image[y1:y2, x1:x2] = match
-                cv2.imwrite(f"results_{puzzle}.png", image)
-                print(f"Created results_{puzzle}.png")
+                cv2.imwrite(f"{puzzle}/results/{piecename}.png", image)
+                print(f"Created {puzzle}/results/{piecename}.png")
                 return
             count += 1
 
 
-def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
+def find_puzzle_piece(puzzle_path: str, piece_path: str,i: int,alg: str,puzzlename: str,piecename: str) -> float:
     """
     Finds a puzzle piece within a larger puzzle image,
     ignoring lighting differences (like shadows) by using edge detection.
@@ -94,12 +72,8 @@ def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
 
     print(f"Checking splitted puzzle '{puzzle_path}'")
     puzzle_color = cv2.imread(puzzle_path)
-
-    # Load the piece image
     piece_color = cv2.imread(piece_path)
 
-    # 2. Convert to Grayscale
-    # This simplifies the image to 1 channel
     puzzle_gray = cv2.cvtColor(puzzle_color, cv2.COLOR_BGR2GRAY)
     piece_gray = cv2.cvtColor(piece_color, cv2.COLOR_BGR2GRAY)
 
@@ -116,8 +90,6 @@ def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
             matches = bf.knnMatch(des1, des2, k=2)
         case "SF":
             sift = cv2.SIFT_create()
-
-            #Find the keypoints and descriptors with SIFT.
             kp1, des1 = sift.detectAndCompute(piece_gray,None)
             kp2, des2 = sift.detectAndCompute(piece_gray,None)
             FLANN_INDEX_KDTREE = 0
@@ -145,8 +117,8 @@ def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
             # Draw location on puzzle
             puzzle_color = cv2.imread(puzzle_path)
             cv2.polylines(puzzle_color, [np.int32(projected_corners)], True, (0,255,0), 3)
-            cv2.imwrite(f"result_{i}_{alg}.jpg", puzzle_color)
-            print(f"Created result_{i}_{alg}.jpg , good = {len(good)}")
+            cv2.imwrite(f"{puzzlename}/matches/{piecename}/result_{i}_{alg}.jpg", puzzle_color)
+            print(f"Created {puzzlename}/matches/{piecename}/result_{i}_{alg}.jpg , good = {len(good)}")
             return len(good)
         else:
             return 0
@@ -175,28 +147,42 @@ def find_puzzle_piece(puzzle_path, piece_path,i: int,alg) -> float:
             return 0
 
     # 6.5. Save the output image
-    output_filename = f"result_{i}_{alg}.jpg"
+    output_filename = f"{puzzlename}/matches/{piecename}/result_{i}_{alg}.jpg"
     cv2.imwrite(output_filename, puzzle_color)
     print(f"\nResult image saved as '{output_filename}'")
     return max_val
 
+def puzzlesetup(puzzlename: str):
+    if os.path.exists(puzzlename):
+        return
+    os.makedirs(puzzlename)
+    os.makedirs(f"{puzzlename}/splitted")
+    os.makedirs(f"{puzzlename}/matches")
+    os.makedirs(f"{puzzlename}/results")
 
 if __name__ == "__main__":
-    piece_file = "input/nobg/konijn.png"
+    piece_file = "input/nobg/paddestoel.png"
     alg = "TM"
+
     if (len(sys.argv) > 1) and sys.argv[1] in ["BF","SF","TM"]:
         alg = sys.argv[1]
 
     results = {}
     print(f"Puzzle file:{PUZZLE_FILE}\nPiece file: {piece_file}\nMatching algorithm: {alg}\n")
     f = os.path.basename(PUZZLE_FILE)
-    file_name,_ = os.path.splitext(f)
-    piece_dir = f"puzzle_pieces/{file_name}/"
-    if not os.path.exists(piece_dir):
-        slice_image(PUZZLE_FILE,piece_dir)
+    puzzle_name,_ = os.path.splitext(f)
+    puzzlesetup(puzzle_name)
+    pieces_dir = f"{puzzle_name}/splitted/"
+    dir = os.listdir(pieces_dir)
+    if len(dir) == 0:
+        slice_image(PUZZLE_FILE,pieces_dir)
 
+    p = os.path.basename(piece_file)
+    piece_name,_ = os.path.splitext(p)
+    if not os.path.exists(f"{puzzle_name}/matches/{piece_name}"):
+        os.makedirs(f"{puzzle_name}/matches/{piece_name}")
     for i in range(NUM_COLS * NUM_ROWS):
-        res = find_puzzle_piece(f"{piece_dir}piece_{i}.jpg",piece_file,i,alg)
+        res = find_puzzle_piece(f"{pieces_dir}piece_{i}.jpg",piece_file,i,alg,puzzle_name,piece_name)
         if res > 0:
             results[i] = res
     if len(results) == 0:
@@ -204,5 +190,5 @@ if __name__ == "__main__":
     else:
         val_based_rev = {k: v for k, v in sorted(results.items(), key=lambda item: item[1], reverse=True)}
         res = next(iter(val_based_rev))
-        print(f"Best match for {piece_file} found in {piece_dir}piece_{res}.jpg (score: {val_based_rev[res]}) with algo {alg} ")
-        copyoutput(res,alg,file_name)
+        print(f"Best match for {piece_file} found in {pieces_dir}piece_{res}.jpg (score: {val_based_rev[res]}) with algo {alg} ")
+        copyoutput(res,alg,puzzle_name,piece_name)
