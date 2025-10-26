@@ -7,6 +7,10 @@ NUM_ROWS = 3
 NUM_COLS = 3
 PUZZLE_FILE = "input/full.jpeg"
 
+""" Discard bad matches """
+TM_CUTOFF = 0.058
+SFBF_CUTOFF = 5
+
 def slice_image(image_path: str, output_dir: str):
     """
     Slices an image into a grid of (rows x cols) pieces and saves them.
@@ -19,7 +23,6 @@ def slice_image(image_path: str, output_dir: str):
     piece_height = height // rows
     piece_width = width // cols
 
-    # Loop through each row and column
     count = 0
     for r in range(rows):
         for c in range(cols):
@@ -50,7 +53,6 @@ def copyoutput(found: str,alg: str,puzzle: str,piecename: str):
     count = 0
     for r in range(rows):
         for c in range(cols):
-            # Calculate the coordinates for the crop
             # y1:y2, x1:x2
             y1 = r * piece_height
             y2 = (r + 1) * piece_height
@@ -101,7 +103,7 @@ def find_puzzle_piece(puzzle_path: str, piece_path: str,i: int,alg: str,puzzlena
     if alg in ["SF","BF"]:
         good = [m for m, n in matches if m.distance < 0.75 * n.distance]
 
-        if len(good) > 5:
+        if len(good) > SFBF_CUTOFF:
             # Get matched points
             src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
             dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -123,30 +125,15 @@ def find_puzzle_piece(puzzle_path: str, piece_path: str,i: int,alg: str,puzzlena
         else:
             return 0
     else:
-
-
-        # 5. Find the best match location
-        # cv2.minMaxLoc returns (min_val, max_val, min_loc, max_loc)
-        # For TM_CCOEFF_NORMED, the best match is the one with the highest value.
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-
         top_left = max_loc
-
-        # Get the dimensions of the piece
         h, w = piece_edges.shape[:2]
-
-        # Calculate the bottom-right corner of the matching box
         bottom_right = (top_left[0] + w, top_left[1] + h)
-
-        # 6. Draw the bounding box
-        # We draw on the *original color image* for the final display
-        # (0, 255, 0) is Green, 3 is the line thickness
         cv2.rectangle(puzzle_color, top_left, bottom_right, (0, 255, 0), 3)
         print(f"  Match Score: {max_val:.4f}")
-        if max_val < 0.058:
+        if max_val < TM_CUTOFF:
             return 0
 
-    # 6.5. Save the output image
     output_filename = f"{puzzlename}/matches/{piecename}/result_{i}_{alg}.jpg"
     cv2.imwrite(output_filename, puzzle_color)
     print(f"\nResult image saved as '{output_filename}'")
