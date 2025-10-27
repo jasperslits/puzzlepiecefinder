@@ -1,6 +1,9 @@
+import asyncio
 import http.server
 import socketserver
-# import cgi
+import matcher_async as ma
+from email.parser import BytesParser
+from email.policy import default
 import os
 
 UPLOAD_DIR = "uploads"
@@ -23,44 +26,49 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(b'Endpoint not found')
             return
 
-        # Parse the multipart form data
+        content_length = int(self.headers.get('Content-Length', 0))
         content_type = self.headers.get('Content-Type')
-        if not content_type:
+
+        if not content_type or 'multipart/form-data' not in content_type:
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(b'Missing Content-Type header')
+            self.wfile.write(b'Invalid Content-Type (expected multipart/form-data)')
             return
 
-        ctype, pdict = cgi.parse_header(content_type)
-        if ctype != 'multipart/form-data':
+        # Read the request body
+        body = self.rfile.read(content_length)
+
+        # Parse using the email module
+        msg = BytesParser(policy=default).parsebytes(
+            b'Content-Type: ' + content_type.encode() + b'\r\n\r\n' + body
+        )
+
+        # Find the first file part (form-data; name="image"; filename="...")
+        image_data = None
+        filename = None
+
+        for part in msg.iter_parts():
+            if part.get_content_disposition() == 'form-data':
+                params = dict(part.get_params(header='content-disposition'))
+                if 'filename' in params:
+                    filename = os.path.basename(params['filename'])
+                    image_data = part.get_payload(decode=True)
+                    break  # stop after first file
+
+        if not image_data or not filename:
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(b'Invalid Content-Type, must be multipart/form-data')
+            self.wfile.write(b'No image found in form data')
             return
 
-        pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
-        pdict['CONTENT-LENGTH'] = int(self.headers['Content-Length'])
-
-        form = cgi.parse_multipart(self.rfile, pdict)
-
-        # Expecting the image under the "image" field
-        if 'image' not in form:
-            self.send_response(400)
-            self.end_headers()
-            self.wfile.write(b'No image field found')
-            return
-
-        image_data = form['image'][0]
-        filename = "uploaded_image.jpg"  # default name; can be customized
-
-        # Save the file
+        # Save file
         save_path = os.path.join(UPLOAD_DIR, filename)
         with open(save_path, 'wb') as f:
             f.write(image_data)
 
-        # Respond
         self.send_response(200)
         self.end_headers()
+        print(f"Saved {filename}")
         self.wfile.write(b'Image uploaded successfully')
 
 
@@ -69,7 +77,7 @@ handler_object = MyHttpRequestHandler
 
 PORT = 8080
 my_server = socketserver.TCPServer(("192.168.178.157", PORT), handler_object)
-
+print(f"192.168.178.157:{PORT} webserver started")
 # Star the server
 try:
     my_server.serve_forever()
