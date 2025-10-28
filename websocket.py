@@ -5,6 +5,7 @@ import base64
 import os
 
 CHECK_INTERVAL = 5
+WS_PORT = 8765
 
 async def send_images(websocket):
     while True:
@@ -25,10 +26,8 @@ async def send_images(websocket):
                 # Wait a few seconds before sending the next image
                 await asyncio.sleep(CHECK_INTERVAL)
 
-async def main():
-    async with websockets.serve(send_images, "0.0.0.0", 8765):
-        print("WebSocket server started on ws://localhost:8765")
+async def ws_start():
+    async with websockets.serve(send_images, "0.0.0.0", WS_PORT):
+        print(f"WebSocket server started on ws://localhost:{WS_PORT}")
         await asyncio.Future()  # run forever
 
-if __name__ == "__main__":
-    asyncio.run(main())

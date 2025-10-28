@@ -4,15 +4,11 @@ from email.parser import BytesParser
 from email.policy import default
 import os
 import mimetypes
-import time
 import matcher_async as ma
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-HOST = "0.0.0.0"
-PORT = 8000
-
+HTTP_HOST = "0.0.0.0"
+HTTP_PORT = 8000
+UPLOAD_DIR = "snapshots"
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     try:
@@ -78,11 +74,11 @@ async def handle_post(path: str, headers: dict, reader, writer):
         await send_response(writer, 400, b"No image file found in POST data")
         return
 
-    save_path = os.path.join(UPLOAD_DIR, filename)
 
-    async with aiofiles.open("input/snapshot.png", mode='wb') as f:
+
+    async with aiofiles.open("input/snapshot.jpg", mode='wb') as f:
         await f.write(image_data)
-    await ma.processpiece("input/snapshot.png")
+    await ma.processpiece("input/snapshot.jpg")
     await send_response(writer, 200, f"Image {filename} uploaded successfully".encode())
 
 
@@ -133,7 +129,8 @@ async def send_response(writer, status_code, body, content_type="text/plain"):
 
 
 async def main():
-    server = await asyncio.start_server(handle_client, HOST, PORT)
+
+    server = await asyncio.start_server(handle_client, HTTP_HOST, HTTP_PORT)
     addr = ", ".join(str(sock.getsockname()) for sock in server.sockets)
     print(f"Serving on {addr}")
     async with server:
