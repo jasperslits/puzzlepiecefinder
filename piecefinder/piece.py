@@ -1,18 +1,28 @@
-import os
+"""Something about Piece."""
+
+from pathlib import Path
+import sys
 
 class Piece:
-    file = ""
-    name = ""
+    """Piece info."""
+    path: str | None = None
+    name: str | None = None
 
     def __init__(self,filename):
-        self.file = filename
-        p = os.path.basename(filename)
-        piece_name,_ = os.path.splitext(p)
-        self.name = piece_name
-        print("Init")
+        """Removebg info."""
+        self.path = filename
+        p = Path(filename)
+        if p.exists() is False:
+            print(f"Piece file {filename} not found")
+            sys.exit(1)
+        self.name = p.stem
 
-    def cleanup(self):
+
+    def cleanup(self) -> None:
+        """Cleanup info."""
         print("Hoi!")
 
-    def removebg(self):
+    def removebg(self) -> None:
+        """Removebg info."""
         print("Remove")
+

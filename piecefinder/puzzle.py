@@ -1,41 +1,58 @@
+"""Something about Puzzle."""
+
+from pathlib import Path
 
 import cv2
-import os
+import numpy as np
+import sys
+
 from .const import NUM_COLS, NUM_ROWS
 
-class Puzzle:
 
-    name = ""
-    path = ""
-    pieces_dir = ""
+class Puzzle:
+    """Something about Puzzle."""
+    path: str | None = None
+    name: str | None = None
+    image_cv2: np.ndarray
+    pieces_dir: str | None = None
 
     def __init__(self,puzzlefile):
+        """Something about init."""
         self.path = puzzlefile
-        f = os.path.basename(puzzlefile)
-        puzzle_name,_ = os.path.splitext(f)
-        self.name = puzzle_name
-        print("Init")
+        p = Path(puzzlefile)
+        if p.exists() is False:
+            print(f"Puzzle file {puzzlefile} not found")
+            sys.exit(1)
+        self.name = p.stem
+        self.readpuzzle()
 
-    async def puzzlesetup(self):
+    def readpuzzle(self) -> None:
+        """Readpuzzle."""
+        self.image_cv2 = cv2.imread(self.path)
+        width,height = self.image_cv2.shape[:2]
+        print(f"Size of source = {width}x{height}")
+
+    async def puzzlesetup(self) -> None:
+        """Something about setup."""
         self.pieces_dir = f"{self.name}/splitted"
-        if os.path.exists(self.name):
+        if Path(self.name).exists():
             return
-        os.makedirs(self.name)
-        os.makedirs(self.pieces_dir)
-        os.makedirs(f"{self.name}/matches")
-        os.makedirs(f"{self.name}/results")
+        Path(self.name).mkdir(parents=True, exist_ok=True)
+        Path(self.name).mkdir(parents=True, exist_ok=True)
+        Path(self.pieces_dir).mkdir(parents=True, exist_ok=True)
+        Path(f"{self.name}/matches").mkdir(parents=True, exist_ok=True)
+        Path(f"{self.name}/results").mkdir(parents=True, exist_ok=True)
 
 
-    async def check_slice(self):
-        pieces_dir = f"{self.name}/splitted/"
-        dir = os.listdir(pieces_dir)
-        if len(dir) == 0:
-            await self.slice_image(self.path,pieces_dir)
+    async def check_slice(self) -> None:
+        """Something about check slice."""
+        pieces_dir = Path(f"{self.name}/splitted/")
+        cnt = sum(1 for f in pieces_dir.iterdir() if f.is_file())
+        if cnt == 0:
+            await self.slice_image(pieces_dir)
 
-    async def slice_image(self, output_dir: str):
-        """
-        Slices an image into a grid of (rows x cols) pieces and saves them.
-        """
+    async def slice_image(self, output_dir: str) -> None:
+        """Slices an image into a grid of (rows x cols) pieces and saves them."""
         rows = NUM_ROWS
         cols = NUM_COLS
         print(f"Slicing '{self.path}' into {rows} rows and {cols} columns...")
@@ -55,7 +72,7 @@ class Puzzle:
                 x2 = (c + 1) * piece_width
                 piece = image[y1:y2, x1:x2]
 
-                piece_filename = os.path.join(output_dir, f"piece_{count}.jpg")
+                piece_filename = Path(output_dir).joinpath(f"piece_{count}.jpg")
                 cv2.imwrite(piece_filename, piece)
                 count += 1
 

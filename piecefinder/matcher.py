@@ -1,58 +1,58 @@
+"""Something about Matcher."""
+
+from pathlib import Path
+
 import cv2
 import numpy as np
-import os
 
-import piecefinder as pf
-import piecefinder.puzzle as Puzzle
-from .const import NUM_COLS, NUM_ROWS
-
-""" Discard bad matches """
-TM_CUTOFF = 0.058
-SFBF_CUTOFF = 5
+from .const import NUM_COLS, NUM_ROWS, SFBF_CUTOFF, TM_CUTOFF
+from .piece import Piece
+from .puzzle import Puzzle
 
 
 class Matcher:
-    alg = ""
-    puzzle = ""
-    piece = ""
+    """Matcher class."""
+    alg: str | None = None
+    puzzle: Puzzle | None = None
+    piece: Piece | None = None
 
     def __init__(self,puzzlefile,piece_file,alg):
-        print("Matcher")
+        """Something about init."""
         self.alg = alg
         self.puzzle = Puzzle(puzzlefile)
 
-        self.piece = pf.Piece(piece_file)
+        self.piece = Piece(piece_file)
 
-    async def processpiece(self,piece_file):
+    async def processpiece(self,piece_file) -> None:
+        """Something about processpiece."""
 
-#        if (len(sys.argv) > 1) and sys.argv[1] in ["BF","SF","TM"]:
-#            alg = sys.argv[1]
 
         results = {}
         print(f"Puzzle file:{self.puzzle.path}\nPiece file: {piece_file}\nMatching algorithm: {self.alg}\n")
 
-        await self.puzzle.puzzlesetup(self.puzzle.name)
+        await self.puzzle.puzzlesetup()
         await self.puzzle.check_slice()
 
-        os.makedirs(f"{self.puzzle.name}/matches/{self.piece.name}",exist_ok = True)
+        Path(f"{self.puzzle.name}/matches/{self.piece.name}").mkdir(parents=True, exist_ok=True)
         for i in range(NUM_COLS * NUM_ROWS):
-            res = await self.find_puzzle_piece(f"{self.puzzle.pieces_dir}piece_{i}.jpg",i)
+            res = await self.find_puzzle_piece(f"{self.puzzle.pieces_dir}/piece_{i}.jpg",i)
             if res > 0:
                 results[i] = res
         if len(results) == 0:
             print(f"No results found for {self.piece.path}")
         else:
-            val_based_rev = {k: v for k, v in sorted(results.items(), key=lambda item: item[1], reverse=True)}
+            val_based_rev = dict(sorted(results.items(), key=lambda item: item[1], reverse=True))
             res = next(iter(val_based_rev))
             print(f"Best match for {piece_file} found in {self.puzzle.pieces_dir}piece_{res}.jpg (score: {val_based_rev[res]}) with algo {self.alg} ")
             await self.copyoutput(res)
 
 
-    async def copyoutput(self,found: str):
+    async def copyoutput(self,found: str) -> None:
+        """Something about copyoutput."""
         rows = NUM_ROWS
         cols = NUM_COLS
         found_image = f"{self.puzzle.name}/matches/{self.piece.name}/result_{found}_{self.alg}.jpg"
-        image = cv2.imread(PUZZLE_FILE)
+        image = self.puzzle.image_cv2
         match = cv2.imread(found_image)
         height, width, _ = image.shape
 
@@ -75,10 +75,10 @@ class Matcher:
                 count += 1
 
 
-    async def find_puzzle_piece(self, i: int) -> float:
-
+    async def find_puzzle_piece(self, splitted: str, i: int) -> float:
+        """Something about find_puzzle_piece."""
         print(f"Checking splitted puzzle '{self.puzzle.name}'")
-        puzzle_color = cv2.imread(self.puzzle.path)
+        puzzle_color = cv2.imread(splitted)
         piece_color = cv2.imread(self.piece.path)
 
         puzzle_gray = cv2.cvtColor(puzzle_color, cv2.COLOR_BGR2GRAY)
@@ -100,8 +100,8 @@ class Matcher:
                 kp1, des1 = sift.detectAndCompute(piece_gray,None)
                 kp2, des2 = sift.detectAndCompute(piece_gray,None)
                 FLANN_INDEX_KDTREE = 0
-                index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-                search_params = dict(checks=50)
+                index_params = dict( algorithm = FLANN_INDEX_KDTREE, trees = 5 )
+                search_params = dict(checks = 50)
                 bf = cv2.FlannBasedMatcher(index_params,search_params)
                 matches = bf.knnMatch(des1, des2, k=2)
 
@@ -114,7 +114,7 @@ class Matcher:
                 dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
                 # Find homography
-                M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+                M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
                 # Get piece corners
                 h, w = piece_gray.shape
@@ -127,17 +127,15 @@ class Matcher:
                 cv2.imwrite(f"{self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg", puzzle_color)
                 print(f"Created {self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg , good = {len(good)}")
                 return len(good)
-            else:
-                return 0
-        else:
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-            top_left = max_loc
-            h, w = piece_edges.shape[:2]
-            bottom_right = (top_left[0] + w, top_left[1] + h)
-            cv2.rectangle(puzzle_color, top_left, bottom_right, (0, 255, 0), 3)
-            print(f"  Match Score: {max_val:.4f}")
-            if max_val < TM_CUTOFF:
-                return 0
+            return 0
+        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+        top_left = max_loc
+        h, w = piece_edges.shape[:2]
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+        cv2.rectangle(puzzle_color, top_left, bottom_right, (0, 255, 0), 3)
+        print(f"  Match Score: {max_val:.4f}")
+        if max_val < TM_CUTOFF:
+            return 0
 
         output_filename = f"{self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg"
         cv2.imwrite(output_filename, puzzle_color)
