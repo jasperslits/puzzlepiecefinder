@@ -1,14 +1,18 @@
+""""Asynchronous HTTP server for image uploads and retrievals."""
+
 import asyncio
+from datetime import datetime
 from email.parser import BytesParser
 from email.policy import default
 import mimetypes
-import os
+from pathlib import Path
 
 import aiofiles
-import piecefinder.matcher as ma
-from ..const import HTTP_PORT,UPLOAD_DIR
 
-HTTP_HOST = "0.0.0.0"
+import piecefinder.matcher as ma
+
+from ..const import HTTP_HOST, HTTP_PORT, UPLOAD_DIR
+
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     """Handle incoming client connections."""
@@ -68,7 +72,7 @@ async def handle_post(path: str, headers: dict, reader, writer):
         if part.get_content_disposition() == "form-data":
             params = dict(part.get_params(header="content-disposition"))
             if "filename" in params:
-                filename = os.path.basename(params["filename"])
+                filename = Path(params["filename"]).name
                 image_data = part.get_payload(decode=True)
                 break
 
@@ -80,18 +84,35 @@ async def handle_post(path: str, headers: dict, reader, writer):
 
     async with aiofiles.open("input/snapshot.jpg", mode='wb') as f:
         await f.write(image_data)
-    await ma.processpiece("input/snapshot.jpg")
+    await ma.processpiece("source/piece/final.png",False)
+    now = datetime.now()
+    date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
+    print(f"[{date_time}]Saved uploaded image as input/snapshot.jpg")
     await send_response(writer, 200, f"Image {filename} uploaded successfully".encode())
 
 
 
 async def handle_get(path: str, writer):
     """Handle GET requests."""
-    if path.startswith("/image/"):
-        filename = os.path.basename(path[len("/image/"):])
-        file_path = os.path.join(UPLOAD_DIR, filename)
+    if path.startswith("/results"):
+        mime = "text/html"
 
-        if not os.path.exists(file_path):
+        cwd = Path.cwd()
+
+        print(Path(__file__).parent)
+
+        # Read file asynchronously
+        file_path = Path(__file__).parent / "index.html"
+        async with aiofiles.open(file_path, mode='rb') as f:
+            data = await f.read()
+        await send_response(writer, 200, data, content_type=mime)
+        return
+
+    if path.startswith("/image/"):
+        filename = Path(path[len("/image/"):]).name
+        file_path = Path(UPLOAD_DIR) / filename
+
+        if not Path(file_path).exists():
             await send_response(writer, 404, b"File not found")
             return
 
@@ -135,8 +156,7 @@ async def send_response(writer, status_code, body, content_type="text/plain"):
 async def main():
     """Main function to start the server."""
     server = await asyncio.start_server(handle_client, HTTP_HOST, HTTP_PORT)
-    addr = ", ".join(str(sock.getsockname()) for sock in server.sockets)
-    print(f"Serving on {addr}")
+    print(f"Serving on {HTTP_HOST}:{HTTP_PORT}")
     async with server:
         await server.serve_forever()
 

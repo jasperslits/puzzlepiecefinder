@@ -1,6 +1,7 @@
+"""Entry point for the PieceFinder server application."""
 import asyncio
-import piecefinder.server.web as web
 
+from piecefinder.server import web
 
 if __name__ == "__main__":
     asyncio.run(web.main())

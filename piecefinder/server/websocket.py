@@ -1,10 +1,13 @@
-# server.py
+"""WebSocket server to stream images to clients."""
 import asyncio
 import base64
 from pathlib import Path
-from ..const import WS_PORT
+from time import time
+
 import aiofiles
 import websockets
+
+from ..const import HTTP_HOST, WS_PORT
 
 CHECK_INTERVAL = 5
 
@@ -32,7 +35,7 @@ async def send_images(websocket):
 
 async def main():
     """Start WebSocket server."""
-    async with websockets.serve(send_images, "0.0.0.0", WS_PORT):
+    async with websockets.serve(send_images, HTTP_HOST, WS_PORT):
         print(f"WebSocket server started on ws://localhost:{WS_PORT}")
         await asyncio.Future()  # run forever
 

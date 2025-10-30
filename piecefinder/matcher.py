@@ -77,7 +77,7 @@ class Matcher:
 
     async def find_puzzle_piece(self, splitted: str, i: int) -> float:
         """Something about find_puzzle_piece."""
-        print(f"Checking splitted puzzle '{self.puzzle.name}'")
+        print(f"Checking splitted puzzle '{splitted}'")
         puzzle_color = cv2.imread(splitted)
         piece_color = cv2.imread(self.piece.path)
 

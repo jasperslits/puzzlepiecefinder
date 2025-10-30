@@ -1,10 +1,10 @@
 """Something about Puzzle."""
 
 from pathlib import Path
+import sys
 
 import cv2
 import numpy as np
-import sys
 
 from .const import NUM_COLS, NUM_ROWS
 
