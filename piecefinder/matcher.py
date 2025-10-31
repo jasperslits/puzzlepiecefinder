@@ -21,7 +21,7 @@ class Matcher:
         self.alg = alg
         self.puzzle = Puzzle(puzzlefile)
 
-        self.piece = Piece(piece_file)
+        self.piece = Piece(piece_file,prep=False)
 
     async def processpiece(self,piece_file) -> None:
         """Something about processpiece."""
@@ -107,7 +107,7 @@ class Matcher:
 
         if self.alg in ["SF","BF"]:
             good = [m for m, n in matches if m.distance < 0.75 * n.distance]
-
+            print(f"Found {len(good)} good matches, tresholding at {SFBF_CUTOFF}")
             if len(good) > SFBF_CUTOFF:
                 # Get matched points
                 src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)

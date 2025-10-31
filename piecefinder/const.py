@@ -1,6 +1,6 @@
 """Consts."""
 UPLOAD_DIR = "snapshots"
-ALG = "TM"
+ALG = "BF"
 
 """PUZZLE data"""
 PUZZLE_FILE = "source/puzzle/klas.jpg"
@@ -12,6 +12,8 @@ NUM_COLS = 3
 PIECE_SOURCE = "source/piece/"
 
 PIECE_FINAL = 'source/piece/final.png'
+
+ESP_SNAPSHOT = "input/snapshot.jpg"
 
 """ Discard bad matches """
 TM_CUTOFF = 0.058

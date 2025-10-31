@@ -1,12 +1,13 @@
 """Something about Piece."""
-import cv2
-import numpy as np
 from pathlib import Path
 import sys
+
+import cv2
+import numpy as np
 from PIL import Image
 from rembg import remove
 
-
+from .const import PIECE_FINAL
 
 
 class Piece:
@@ -14,6 +15,7 @@ class Piece:
     path: str | None = None
     name: str | None = None
     image_cv2: np.ndarray
+    sharpen: bool = False
 
     def __init__(self,filename,prep: bool = False):
         """Removebg info."""
@@ -46,19 +48,21 @@ class Piece:
 
     def cleanup(self) -> None:
         """Cleanup info."""
-        org = self.image_cv2
         left = 400
         top = 295
         width = 300
         height = 170
 
         # simple slice (will raise no IndexError but may produce smaller patch if out of bounds)
-        nw = org[top:(top+height), left:(left+width)]
+        nw = self.image_cv2[top:(top+height), left:(left+width)]
+        if self.sharpen:
+            cv2.imwrite(PIECE_FINAL, nw)
+        else:
+            kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+            sharpened_image = cv2.filter2D(nw, -1, kernel)
+            cv2.imwrite(PIECE_FINAL, sharpened_image)
 
-        cv2.imwrite("source/piece/final.png", nw)
-        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-        #sharpened_image = cv2.filter2D(nw, -1, kernel)
-        #cv2.imwrite("input/sharp.jpg", sharpened_image)
+
 
 
 

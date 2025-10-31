@@ -46,9 +46,9 @@ class Puzzle:
 
     async def check_slice(self) -> None:
         """Something about check slice."""
-        pieces_dir = Path(f"{self.name}/splitted/")
-        cnt = sum(1 for f in pieces_dir.iterdir() if f.is_file())
-        if cnt == 0:
+        pieces_dir = Path(f"{self.name}/splitted")
+        file = pieces_dir.joinpath("piece_0.jpg")
+        if not file.exists:
             await self.slice_image(pieces_dir)
 
     async def slice_image(self, output_dir: str) -> None:

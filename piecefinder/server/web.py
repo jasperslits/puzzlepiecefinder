@@ -11,7 +11,7 @@ import aiofiles
 
 import piecefinder.matcher as ma
 
-from ..const import HTTP_HOST, HTTP_PORT, UPLOAD_DIR
+from ..const import ALG, ESP_SNAPSHOT, HTTP_HOST, HTTP_PORT, PUZZLE_FILE, UPLOAD_DIR
 
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -82,12 +82,13 @@ async def handle_post(path: str, headers: dict, reader, writer):
 
 
 
-    async with aiofiles.open("input/snapshot.jpg", mode='wb') as f:
+    async with aiofiles.open(ESP_SNAPSHOT, mode='wb') as f:
         await f.write(image_data)
-    await ma.processpiece("source/piece/final.png",False)
-    now = datetime.now()
-    date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
-    print(f"[{date_time}]Saved uploaded image as input/snapshot.jpg")
+
+    m = ma.Matcher(PUZZLE_FILE,ESP_SNAPSHOT,ALG)
+    await m.processpiece("source/piece/final.png")
+    date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    print(f"[{date_time}]Saved uploaded image as {ESP_SNAPSHOT} and processed piece.")
     await send_response(writer, 200, f"Image {filename} uploaded successfully".encode())
 
 
@@ -97,13 +98,9 @@ async def handle_get(path: str, writer):
     if path.startswith("/results"):
         mime = "text/html"
 
-        cwd = Path.cwd()
-
-        print(Path(__file__).parent)
-
         # Read file asynchronously
         file_path = Path(__file__).parent / "index.html"
-        async with aiofiles.open(file_path, mode='rb') as f:
+        async with aiofiles.open(file_path) as f:
             data = await f.read()
         await send_response(writer, 200, data, content_type=mime)
         return
