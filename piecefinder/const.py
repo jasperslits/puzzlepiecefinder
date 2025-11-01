@@ -14,6 +14,7 @@ PIECE_SOURCE = "source/piece/"
 PIECE_FINAL = 'source/piece/final.png'
 
 ESP_SNAPSHOT = "input/snapshot.jpg"
+ESP_HOST = "esp.slits.nl"
 
 """ Discard bad matches """
 TM_CUTOFF = 0.058

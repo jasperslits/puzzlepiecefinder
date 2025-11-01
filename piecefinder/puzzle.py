@@ -16,7 +16,7 @@ class Puzzle:
     image_cv2: np.ndarray
     pieces_dir: str | None = None
 
-    def __init__(self,puzzlefile):
+    def __init__(self,puzzlefile: str):
         """Something about init."""
         self.path = puzzlefile
         p = Path(puzzlefile)
@@ -43,16 +43,13 @@ class Puzzle:
         Path(f"{self.name}/matches").mkdir(parents=True, exist_ok=True)
         Path(f"{self.name}/results").mkdir(parents=True, exist_ok=True)
 
-
-    async def check_slice(self) -> None:
-        """Something about check slice."""
-        pieces_dir = Path(f"{self.name}/splitted")
-        file = pieces_dir.joinpath("piece_0.jpg")
-        if not file.exists:
-            await self.slice_image(pieces_dir)
-
     async def slice_image(self, output_dir: str) -> None:
         """Slices an image into a grid of (rows x cols) pieces and saves them."""
+        pieces_dir = Path(f"{self.name}/splitted")
+        file = pieces_dir.joinpath("piece_0.jpg")
+        if file.exists:
+            return
+
         rows = NUM_ROWS
         cols = NUM_COLS
         print(f"Slicing '{self.path}' into {rows} rows and {cols} columns...")

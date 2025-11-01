@@ -16,7 +16,7 @@ class Matcher:
     puzzle: Puzzle | None = None
     piece: Piece | None = None
 
-    def __init__(self,puzzlefile,piece_file,alg):
+    def __init__(self,puzzlefile: str,piece_file: str,alg:str):
         """Something about init."""
         self.alg = alg
         self.puzzle = Puzzle(puzzlefile)
@@ -35,8 +35,7 @@ class Matcher:
 
         Path(f"{self.puzzle.name}/matches/{self.piece.name}").mkdir(parents=True, exist_ok=True)
         for i in range(NUM_COLS * NUM_ROWS):
-            res = await self.find_puzzle_piece(f"{self.puzzle.pieces_dir}/piece_{i}.jpg",i)
-            if res > 0:
+            if res:= await self.find_puzzle_piece(f"{self.puzzle.pieces_dir}/piece_{i}.jpg",i) > 0:
                 results[i] = res
         if len(results) == 0:
             print(f"No results found for {self.piece.path}")
