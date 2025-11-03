@@ -1,6 +1,8 @@
 """Consts."""
+from enums import Algorithm
+
 UPLOAD_DIR = "snapshots"
-ALG = "BF"
+ALG = Algorithm.TM
 
 """PUZZLE data"""
 PUZZLE_FILE = "source/puzzle/klas.jpg"
@@ -20,6 +22,8 @@ ESP_HOST = "esp.slits.nl"
 TM_CUTOFF = 0.058
 SFBF_CUTOFF = 5
 
+"""Stream image from ESP or have ESP push it  """
+IMG_SOURCE = "PULL" # PULL or PUSH
 
 """Server data"""
 WS_PORT = 8765

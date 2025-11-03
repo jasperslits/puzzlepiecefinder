@@ -6,13 +6,14 @@ import cv2
 import numpy as np
 
 from .const import NUM_COLS, NUM_ROWS, SFBF_CUTOFF, TM_CUTOFF
+from .enums import Algorithm
 from .piece import Piece
 from .puzzle import Puzzle
 
 
 class Matcher:
     """Matcher class."""
-    alg: str | None = None
+    alg: Algorithm
     puzzle: Puzzle | None = None
     piece: Piece | None = None
 
@@ -84,17 +85,17 @@ class Matcher:
         piece_gray = cv2.cvtColor(piece_color, cv2.COLOR_BGR2GRAY)
 
         match self.alg:
-            case "TM":
+            case Algorithm.TM:
                 puzzle_edges = cv2.Canny(puzzle_gray, 50, 200)
                 piece_edges = cv2.Canny(piece_gray, 50, 200)
                 result = cv2.matchTemplate(puzzle_edges, piece_edges, cv2.TM_CCOEFF_NORMED)
-            case "BF":
+            case Algorithm.BF:
                 orb = cv2.ORB_create(5000)
                 kp1, des1 = orb.detectAndCompute(piece_gray, None)
                 kp2, des2 = orb.detectAndCompute(puzzle_gray, None)
                 bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
                 matches = bf.knnMatch(des1, des2, k=2)
-            case "SF":
+            case Algorithm.SF:
                 sift = cv2.SIFT_create()
                 kp1, des1 = sift.detectAndCompute(piece_gray,None)
                 kp2, des2 = sift.detectAndCompute(piece_gray,None)
@@ -104,7 +105,7 @@ class Matcher:
                 bf = cv2.FlannBasedMatcher(index_params,search_params)
                 matches = bf.knnMatch(des1, des2, k=2)
 
-        if self.alg in ["SF","BF"]:
+        if self.alg in [Algorithm.SF,Algorithm.BF]:
             good = [m for m, n in matches if m.distance < 0.75 * n.distance]
             print(f"Found {len(good)} good matches, tresholding at {SFBF_CUTOFF}")
             if len(good) > SFBF_CUTOFF:

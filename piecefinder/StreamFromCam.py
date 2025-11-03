@@ -19,7 +19,7 @@ class StreamFromCam:
         """Initialize StreamFromCam."""
         self.piece_filename = PIECE_FINAL
 
-    def stream_video(self):
+    def capture_frame(self):
         """Stream video from ESP32-CAM and process frames."""
 
 
@@ -41,6 +41,11 @@ class StreamFromCam:
             sys.exit()
         else:
             print("Video stream opened successfully.")
+
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        print(f"Frame dimensions: {frame_width}x{frame_height}")
 
         # Process the video stream frame by frame
         while True:
