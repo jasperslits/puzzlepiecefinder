@@ -1,5 +1,5 @@
 """Consts."""
-from enums import Algorithm
+from .enums import Algorithm, FileDelivery
 
 UPLOAD_DIR = "snapshots"
 ALG = Algorithm.TM
@@ -23,7 +23,7 @@ TM_CUTOFF = 0.058
 SFBF_CUTOFF = 5
 
 """Stream image from ESP or have ESP push it  """
-IMG_SOURCE = "PULL" # PULL or PUSH
+IMG_SOURCE = FileDelivery.PUSH # PULL or PUSH
 
 """Server data"""
 WS_PORT = 8765
