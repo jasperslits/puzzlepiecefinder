@@ -9,43 +9,60 @@ from .const import NUM_COLS, NUM_ROWS, SFBF_CUTOFF, TM_CUTOFF
 from .enums import Algorithm
 from .piece import Piece
 from .puzzle import Puzzle
-
+from .result import Block, Result
+from .dataclass import ResultDto,BlockDto
 
 class Matcher:
     """Matcher class."""
     alg: Algorithm
     puzzle: Puzzle | None = None
     piece: Piece | None = None
+    result: Result | None = None
+    blocks: list[BlockDto] = []
+    resultdto: ResultDto | None = None
 
-    def __init__(self,puzzlefile: str,piece_file: str,alg:str):
+    def __init__(self,puzzle_id: int,piece_id: int,alg:str):
         """Something about init."""
         self.alg = alg
-        self.puzzle = Puzzle(puzzlefile)
+        self.puzzle = Puzzle(puzzle_id)
+        self.resultdto = ResultDto(id=0,slice_count=NUM_COLS * NUM_ROWS, puzzle_id=puzzle_id, piece_id=piece_id, match=0)
+        self.piece = Piece(piece_id,prep=False)
 
-        self.piece = Piece(piece_file,prep=False)
+    def get_results(self) -> str:
+        """Get results."""
+
+        return self.result.to_json()
+
+    def save_results(self) -> int:
+        """Save results."""
+        result = Result(self.resultdto)
+        return result.save()
 
     async def processpiece(self,piece_file) -> None:
         """Something about processpiece."""
 
 
-        results = {}
         print(f"Puzzle file:{self.puzzle.path}\nPiece file: {piece_file}\nMatching algorithm: {self.alg}\n")
 
         await self.puzzle.puzzlesetup()
-        await self.puzzle.check_slice()
+        _ = await self.puzzle.slice_image()
 
         Path(f"{self.puzzle.name}/matches/{self.piece.name}").mkdir(parents=True, exist_ok=True)
         for i in range(NUM_COLS * NUM_ROWS):
-            if res:= await self.find_puzzle_piece(f"{self.puzzle.pieces_dir}/piece_{i}.jpg",i) > 0:
-                results[i] = res
-        if len(results) == 0:
+            res = await self.find_puzzle_piece(f"{self.puzzle.pieces_dir}/piece_{i}.jpg",i)
+            if res.score > 0:
+                res.slice_index = i
+                self.blocks.append(res)
+        if len(self.blocks) == 0:
             print(f"No results found for {self.piece.path}")
-        else:
-            val_based_rev = dict(sorted(results.items(), key=lambda item: item[1], reverse=True))
-            res = next(iter(val_based_rev))
-            print(f"Best match for {piece_file} found in {self.puzzle.pieces_dir}piece_{res}.jpg (score: {val_based_rev[res]}) with algo {self.alg} ")
-            await self.copyoutput(res)
+            self.resultdto.match = 0
 
+        else:
+            val_based_rev = sorted(self.blocks, key=lambda item: item.score, reverse=True)
+            res = val_based_rev[0]
+            print(f"Best match for {piece_file} found in {self.puzzle.pieces_dir}/piece_{res.slice_index}.jpg (score: {res.score}) with algo {self.alg} ")
+            self.resultdto.match = res.slice_index
+            self.resultdto.piece_position = res
 
     async def copyoutput(self,found: str) -> None:
         """Something about copyoutput."""
@@ -75,11 +92,16 @@ class Matcher:
                 count += 1
 
 
-    async def find_puzzle_piece(self, splitted: str, i: int) -> float:
+    async def find_puzzle_piece(self, splitted: str, i: int) -> BlockDto:
         """Something about find_puzzle_piece."""
-        print(f"Checking splitted puzzle '{splitted}'")
+
+        b = BlockDto()
+
         puzzle_color = cv2.imread(splitted)
         piece_color = cv2.imread(self.piece.path)
+        t_w,t_h = puzzle_color.shape[:2]
+        s_w,s_h = piece_color.shape[:2]
+        print(f"Checking splitted puzzle '{splitted}(size={t_w}x{t_h})' against piece '{self.piece.path}(size={s_h}x{s_w})' with algo {self.alg}   ")
 
         puzzle_gray = cv2.cvtColor(puzzle_color, cv2.COLOR_BGR2GRAY)
         piece_gray = cv2.cvtColor(piece_color, cv2.COLOR_BGR2GRAY)
@@ -107,7 +129,7 @@ class Matcher:
 
         if self.alg in [Algorithm.SF,Algorithm.BF]:
             good = [m for m, n in matches if m.distance < 0.75 * n.distance]
-            print(f"Found {len(good)} good matches, tresholding at {SFBF_CUTOFF}")
+            print(f"Found {len(good)} good matches, treshold at {SFBF_CUTOFF}")
             if len(good) > SFBF_CUTOFF:
                 # Get matched points
                 src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -126,8 +148,10 @@ class Matcher:
                 cv2.polylines(puzzle_color, [np.int32(projected_corners)], True, (0,255,0), 3)
                 cv2.imwrite(f"{self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg", puzzle_color)
                 print(f"Created {self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg , good = {len(good)}")
-                return len(good)
-            return 0
+                b.score = float(len(good))
+                return b
+            else:
+                return b
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
         top_left = max_loc
         h, w = piece_edges.shape[:2]
@@ -135,9 +159,13 @@ class Matcher:
         cv2.rectangle(puzzle_color, top_left, bottom_right, (0, 255, 0), 3)
         print(f"  Match Score: {max_val:.4f}")
         if max_val < TM_CUTOFF:
-            return 0
+            return b
 
-        output_filename = f"{self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg"
-        cv2.imwrite(output_filename, puzzle_color)
+     #   output_filename = f"{self.puzzle.name}/matches/{self.piece.name}/result_{i}_{self.alg}.jpg"
+     #   cv2.imwrite(output_filename, puzzle_color)
         print(f"\nResult image saved as '{output_filename}'")
-        return max_val
+        b.x = top_left[0]
+        b.y = top_left[1]
+        b.width = w
+        b.height = h
+        return b

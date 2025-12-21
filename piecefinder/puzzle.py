@@ -6,7 +6,8 @@ import sys
 import cv2
 import numpy as np
 
-from .const import NUM_COLS, NUM_ROWS
+from .const import ASSETDIR, NUM_COLS, NUM_ROWS
+from .database import Db
 
 
 class Puzzle:
@@ -16,12 +17,15 @@ class Puzzle:
     image_cv2: np.ndarray
     pieces_dir: str | None = None
 
-    def __init__(self,puzzlefile: str):
+    def __init__(self,puzzle_id: id):
+        """Puzzle info."""
+        p = Db().get_puzzle(puzzle_id)
+        puzzlefile = p.large
         """Something about init."""
-        self.path = puzzlefile
-        p = Path(puzzlefile)
+        self.path = ASSETDIR + "/large/" + puzzlefile
+        p = Path(self.path)
         if p.exists() is False:
-            print(f"Puzzle file {puzzlefile} not found")
+            print(f"Puzzle file {p} not found")
             sys.exit(1)
         self.name = p.stem
         self.readpuzzle()
@@ -43,12 +47,13 @@ class Puzzle:
         Path(f"{self.name}/matches").mkdir(parents=True, exist_ok=True)
         Path(f"{self.name}/results").mkdir(parents=True, exist_ok=True)
 
-    async def slice_image(self, output_dir: str) -> None:
+    async def slice_image(self) -> int:
         """Slices an image into a grid of (rows x cols) pieces and saves them."""
-        pieces_dir = Path(f"{self.name}/splitted")
-        file = pieces_dir.joinpath("piece_0.jpg")
+        sliced_dir = Path(f"{self.name}/splitted")
+        file = sliced_dir.joinpath("piece_0.jpg")
         if file.exists:
-            return
+            print(f"Sliced pieces already exist in '{sliced_dir}', skipping slicing.")
+            return 0
 
         rows = NUM_ROWS
         cols = NUM_COLS
@@ -69,8 +74,9 @@ class Puzzle:
                 x2 = (c + 1) * piece_width
                 piece = image[y1:y2, x1:x2]
 
-                piece_filename = Path(output_dir).joinpath(f"piece_{count}.jpg")
+                piece_filename = Path(sliced_dir).joinpath(f"piece_{count}.jpg")
                 cv2.imwrite(piece_filename, piece)
                 count += 1
 
-        print(f"Successfully saved {count} pieces to the '{output_dir}' directory.")
+        print(f"Successfully saved {count} pieces to the '{sliced_dir}' directory.")
+        return count

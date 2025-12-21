@@ -7,7 +7,8 @@ import numpy as np
 from PIL import Image
 from rembg import remove
 
-from .const import PIECE_FINAL
+from .const import ASSETDIR
+from .database import Db
 
 
 class Piece:
@@ -17,17 +18,18 @@ class Piece:
     image_cv2: np.ndarray
     sharpen: bool = False
 
-    def __init__(self,filename,prep: bool = False):
+    def __init__(self,piece_id: int,prep: bool = False):
         """Removebg info."""
-        self.path = filename
-        p = Path(filename)
+        piece = Db().get_piece(piece_id)
+        self.path = ASSETDIR + "/pieces/" + piece.filename
+        p = Path(self.path)
         if p.exists() is False:
-            print(f"Piece file {filename} not found")
+            print(f"Piece file {self.path} not found")
             sys.exit(1)
         self.name = p.stem
         if prep:
             self.readpiece()
-            self.cleanup()
+     #       self.cleanup()
             self.removebg()
 
     def readpiece(self) -> None:
