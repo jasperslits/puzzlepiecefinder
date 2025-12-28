@@ -9,19 +9,26 @@ from rembg import remove
 
 from .const import ASSETDIR
 from .database import Db
+from .dataclass import PieceDto
 
 
 class Piece:
     """Piece info."""
+    id: int | None = None
     path: str | None = None
     name: str | None = None
     image_cv2: np.ndarray
     sharpen: bool = False
+    piecedto : PieceDto
 
     def __init__(self,piece_id: int,prep: bool = False):
         """Removebg info."""
-        piece = Db().get_piece(piece_id)
-        self.path = ASSETDIR + "/pieces/" + piece.filename
+        self.id = piece_id
+        self.piecedto = Db().get_piece(piece_id)
+        if self.piecedto is None:
+            print(f"Piece id {piece_id} not found in database")
+            sys.exit(1)
+        self.path = ASSETDIR + "/pieces/" + self.piecedto.filename
         p = Path(self.path)
         if p.exists() is False:
             print(f"Piece file {self.path} not found")
@@ -41,7 +48,7 @@ class Piece:
     def removebg(self) -> None:
         """Removebg info."""
         input_path = "input/cleanup.jpg"
-        output_path = f"input/{self.name}_no_bg.png"
+        output_path = f"input/{self.piecedto.filename}_no_bg.png"
 
         input_image = Image.open(input_path)
         output_image = remove(input_image)

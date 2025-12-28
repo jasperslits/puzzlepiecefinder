@@ -8,26 +8,29 @@ import numpy as np
 
 from .const import ASSETDIR, NUM_COLS, NUM_ROWS
 from .database import Db
+from .dataclass import BlockDto, SliceDto
 
 
 class Puzzle:
     """Something about Puzzle."""
-    path: str | None = None
-    name: str | None = None
+    path: str
+    name: str
     image_cv2: np.ndarray
-    pieces_dir: str | None = None
+    pieces_dir: str
+    puzzle_id: int
 
-    def __init__(self,puzzle_id: id):
+    def __init__(self,puzzle_id: int):
         """Puzzle info."""
         p = Db().get_puzzle(puzzle_id)
+        self.puzzle_id = puzzle_id
         puzzlefile = p.large
         """Something about init."""
         self.path = ASSETDIR + "/large/" + puzzlefile
-        p = Path(self.path)
-        if p.exists() is False:
+        path = Path(self.path)
+        if path.exists() is False:
             print(f"Puzzle file {p} not found")
             sys.exit(1)
-        self.name = p.stem
+        self.name = path.stem
         self.readpuzzle()
 
     def readpuzzle(self) -> None:
@@ -49,11 +52,12 @@ class Puzzle:
 
     async def slice_image(self) -> int:
         """Slices an image into a grid of (rows x cols) pieces and saves them."""
-        sliced_dir = Path(f"{self.name}/splitted")
-        file = sliced_dir.joinpath("piece_0.jpg")
-        if file.exists:
-            print(f"Sliced pieces already exist in '{sliced_dir}', skipping slicing.")
+
+        if Db().check_slice(puzzle_id=self.puzzle_id):
+            print(f"Slices already exist for puzzle id '{self.puzzle_id}', skipping slicing.")
             return 0
+
+        sliced_dir = Path(f"{self.name}/splitted")
 
         rows = NUM_ROWS
         cols = NUM_COLS
@@ -74,6 +78,8 @@ class Puzzle:
                 x2 = (c + 1) * piece_width
                 piece = image[y1:y2, x1:x2]
 
+                SliceDto_obj = SliceDto(puzzle_id=self.puzzle_id, slice_id=count, position=BlockDto(x=x1, y=y1, width=piece_width, height=piece_height, score=0.0))
+                Db().save_slice(SliceDto_obj)
                 piece_filename = Path(sliced_dir).joinpath(f"piece_{count}.jpg")
                 cv2.imwrite(piece_filename, piece)
                 count += 1

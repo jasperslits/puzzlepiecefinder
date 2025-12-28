@@ -87,6 +87,9 @@ dependencies = [
 [project.scripts]
 hass = "homeassistant.__main__:main"
 
+[tool.mypy]
+disable_error_code = ["import-untyped"]
+
 [tool.setuptools]
 include-package-data = true
 

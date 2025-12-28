@@ -14,7 +14,7 @@ import piecefinder.matcher as ma
 
 from ..const import ALG, ASSETDIR, HTTP_HOST, HTTP_PORT
 from ..database import Db
-from ..dataclass import Piece
+from ..dataclass import PieceDto
 
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -54,12 +54,15 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 async def handle_post(path: str, headers: dict, reader, writer):
     """Handle POST requests for image uploads."""
 
+    if path.startswith("/proxy/upload_mock"):
+        resp = {"piece_id": 13, "result": "OK"}
+        await send_response(writer, 200, json.dumps(resp), content_type="application/json")
+        return
 
     if not path.startswith("/proxy/upload"):
         print("Invalid POST path")
         await send_response(writer, 404, b"Not Found")
         return
-
 
     content_length = int(headers.get("Content-Length", "0"))
     content_type = headers.get("Content-Type", headers.get("content-type",""))
@@ -78,14 +81,10 @@ async def handle_post(path: str, headers: dict, reader, writer):
         await send_response(writer, 400, "Incomplete POST body")
         return
 
-
-
-
     # Parse using email.parser
     msg = BytesParser(policy=default).parsebytes(
         b"Content-Type: " + content_type.encode() + b"\r\n\r\n" + body
     )
-
 
     image_data = None
     filename = None
@@ -103,7 +102,7 @@ async def handle_post(path: str, headers: dict, reader, writer):
         return
 
     puzzle_id = path.rstrip("/").split("/")[-1]
-    p = Piece()
+    p = PieceDto()
     p.puzzle_id = int(puzzle_id)
     async with aiofiles.open(f"{ASSETDIR}/pieces/{p.filename}", mode='wb') as f:
         await f.write(image_data)
@@ -112,34 +111,41 @@ async def handle_post(path: str, headers: dict, reader, writer):
 
     date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     text = f"[{date_time}]Saved uploaded image as {p.filename} and processed piece."
-    resp = {"piece_id": piece_id, "result": text}
+    resp = {"piece_id": piece_id, "result": "OK"}
     await send_response(writer, 200, json.dumps(resp), content_type="application/json")
-    m = ma.Matcher(puzzle_id,p.filename,ALG)
-    await m.processpiece(p.filename)
+
 
 async def handle_get(path: str, writer):
     """Handle GET requests."""
 
     db = Db()
 
+    if path.startswith("/proxy/history"):
+        histories = db.get_histories_json()
+        print(histories)
+        await send_response(writer, 200, histories, content_type="application/json")
+        return
+
     if path.startswith("/proxy/processpiece"):
 
         piece_id = int(path[len("/proxy/processpiece/"):])
         piece = db.get_piece(piece_id)
+        if piece is None:
+            await send_response(writer, 404, "Piece not found.")
+            return
         m = ma.Matcher(piece.puzzle_id,piece.id,ALG)
         await m.processpiece(piece.filename)
         result_id = m.save_results()
         result = {"result_id": result_id,"algorithm": ALG}
         pieces_json = json.dumps(result)
         await send_response(writer, 200, pieces_json, content_type="application/json")
-        return None
+        return
 
     if path == "/proxy/puzzles":
-
-
-        puzzles = db.get_puzzles()
+        puzzles = db.get_puzzles_json()
+        print(puzzles)
         await send_response(writer, 200, puzzles, content_type="application/json")
-        return None
+        return
 
     if path.startswith("/proxy/pieces/"):
         piece_id = int(path[len("/proxy/pieces/"):])
@@ -147,7 +153,7 @@ async def handle_get(path: str, writer):
         pieces = db.get_piece(piece_id)
         pieces_json = json.dumps(pieces.__dict__)
         await send_response(writer, 200, pieces_json, content_type="application/json")
-        return None
+        return
 
     if path.startswith("/proxy/results"):
         piece_id = int(path[len("/proxy/results/"):])
@@ -155,34 +161,26 @@ async def handle_get(path: str, writer):
         result = db.get_results(piece_id)
         if result is None:
             piece = db.get_piece(piece_id)
+            if piece is None:
+                await send_response(writer, 404, "No results found for this piece.")
+                return
             print(f"No results found for piece id {piece_id}, running matcher...")
-            return await send_response(writer, 404, "No results found for this piece.")
             m = ma.Matcher(piece.puzzle_id,piece.id,ALG)
-            result = m.get_results()
+            await m.processpiece(piece.filename)
+            result_id = m.save_results()
+            result = db.get_results(piece_id)
+            if result is None:
+                await send_response(writer, 404, "No results found for this piece after processing.")
+                return
 
-        result.piece_position = None
-        pieces_json = json.dumps(result)
+       # result.piece_position = None
+        ret = result.__dict__
+        ret["piece_position"] = result.piece_position.__dict__
+        ret["slice_position"] = result.slice_position.__dict__
+        pieces_json = json.dumps(ret)
 
         await send_response(writer, 200, pieces_json, content_type="application/json")
-        return None
-
-
-    if path.startswith("/proxy/results2/"):
-        filename = Path(path[len("/proxy/results/"):]).name
-        file_path = Path(filename + "/results/piece_snapshot.png")
-        # klas/results/piece_snapshot.png
-
-
-        if not Path(file_path).exists():
-            file_path = Path("piecefinder/server/404.png")
-
-        async with aiofiles.open(file_path,"rb") as f:
-            data = await f.read()
-
-        print(f"Sending file {file_path}")
-        await send_response(writer, 200, data, content_type="image/png")
-        return None
-
+        return
 
 
 async def send_response(writer, status_code, body, content_type="text/plain"):

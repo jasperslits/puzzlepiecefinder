@@ -3,9 +3,8 @@
 
 from dataglasses import to_json_schema
 
-from .const import NUM_COLS, NUM_ROWS
 from .database import Db
-from .dataclass import APIResult, Block, BlockDto, ResultDto
+from .dataclass import ResultDto
 
 
 class Result:
@@ -13,15 +12,21 @@ class Result:
 
     data: ResultDto | None
 
-    def save(self) -> int:
+    def save(self, data: ResultDto) -> int:
         """Save result to database."""
-        return Db().save_results(self.data)
+        return Db().save_results(data)
 
-    def to_json(self) -> str:
+    def get_results(self,piece_id: int) -> ResultDto | None:
+        """Get results from database."""
+        return Db().get_results(piece_id)
+
+    def get_results_json(self,piece_id: int) -> str:
         """Get data."""
+        self.data = Db().get_results(piece_id)
         return to_json_schema(self.data)
 
-    def __init__(self,data: ResultDto):
-        self.data = data
+    def __init__(self):
+        """Something about init."""
+        self.data = None
 
 
