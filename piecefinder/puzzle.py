@@ -57,7 +57,8 @@ class Puzzle:
             print(f"Slices already exist for puzzle id '{self.puzzle_id}', skipping slicing.")
             return 0
 
-        sliced_dir = Path(f"{self.name}/splitted")
+        sliced_dir = Path(f"assets/slices/{self.puzzle_id}/")
+        sliced_dir.mkdir(parents=True, exist_ok=True)
 
         rows = NUM_ROWS
         cols = NUM_COLS

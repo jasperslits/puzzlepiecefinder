@@ -8,7 +8,4 @@ class Algorithm(Enum):
     TM = "TM"
     SF = "SF"
 
-class FileDelivery(Enum):
-    """File delivery methods."""
-    PUSH = "PUSH"
-    PULL = "PULL"
+

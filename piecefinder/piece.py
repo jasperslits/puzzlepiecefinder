@@ -4,8 +4,6 @@ import sys
 
 import cv2
 import numpy as np
-from PIL import Image
-from rembg import remove
 
 from .const import ASSETDIR
 from .database import Db
@@ -37,23 +35,13 @@ class Piece:
         if prep:
             self.readpiece()
      #       self.cleanup()
-            self.removebg()
+
 
     def readpiece(self) -> None:
         """Read piece."""
         self.image_cv2 = cv2.imread(self.path)
         width,height = self.image_cv2.shape[:2]
         print(f"Size of piece = {width}x{height}")
-
-    def removebg(self) -> None:
-        """Removebg info."""
-        input_path = "input/cleanup.jpg"
-        output_path = f"input/{self.piecedto.filename}_no_bg.png"
-
-        input_image = Image.open(input_path)
-        output_image = remove(input_image)
-        output_image.save(output_path)
-        print(f"Saved image without background to {output_path}")
 
     def cleanup(self) -> None:
         """Cleanup info."""

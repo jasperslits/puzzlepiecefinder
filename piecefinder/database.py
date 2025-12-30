@@ -44,7 +44,8 @@ class Db:
         """Get histories from database."""
         self.cursor.execute("SELECT id,puzzle_id,piece_id,match FROM results order by id desc limit 10")
         rows = self.cursor.fetchall()
-        dbentries = [HistoryDto(id=row[0], puzzle_name=row[1],piece_id=row[2], match=row[3]) for row in rows]
+        date = "2024-01-01 12:00:00"  # Placeholder date
+        dbentries = [HistoryDto(id=row[0], puzzle_name=row[1],date=date,piece_id=row[2], match=row[3]) for row in rows]
         return json.dumps([entry.__dict__ for entry in dbentries])
 
 
@@ -57,25 +58,28 @@ class Db:
 
     def save_block(self,block: BlockDto) -> int:
         """Save block to database."""
-        self.cursor.execute("INSERT INTO blocks (x,y,width,height,score) VALUES (?,?,?,?,?)", (block.x, block.y, block.width, block.height, block.score))
+        if block is None:
+            block = BlockDto()
+        self.cursor.execute("INSERT INTO blocks (x,y,width,height,score,filename) VALUES (?,?,?,?,?,?)", (block.x, block.y, block.width, block.height, block.score, block.filename))
         self.cursor.connection.commit()
         return self.cursor.lastrowid
 
     def get_block(self,id: int) -> BlockDto:
         """Get block from database."""
-        self.cursor.execute("SELECT id,x,y,width,height,score FROM blocks WHERE id = ?", (id,))
+        self.cursor.execute("SELECT id,x,y,width,height,score,filename FROM blocks WHERE id = ?", (id,))
+        print(id)
         row = self.cursor.fetchone()
         if row:
-            return BlockDto(id=row[0], x=row[1], y=row[2], width=row[3], height=row[4], score=row[5])
+            return BlockDto(id=row[0], x=row[1], y=row[2], width=row[3], height=row[4], score=row[5], filename=row[6])
         return BlockDto()
 
     def get_results(self,piece_id: int) -> ResultDto | None:
         """Get results from database."""
-        self.cursor.execute("SELECT id,puzzle_id,piece_id,match FROM results WHERE piece_id = ?", (piece_id,))
+        self.cursor.execute("SELECT id,puzzle_id,piece_id,match,slice_id,piece_position FROM results WHERE piece_id = ?", (piece_id,))
         row = self.cursor.fetchone()
         if row:
-            r = ResultDto(id=row[0], puzzle_id=row[1], piece_id=row[2], match=row[3],slice_count=NUM_COLS * NUM_ROWS)
-            r.piece_position = self.get_block(r.id)
+            r = ResultDto(id=row[0], puzzle_id=row[1], slice_id=row[4], piece_id=row[2], match=row[3],slice_count=NUM_COLS * NUM_ROWS)
+            r.piece_position = self.get_block(row[5])
             r.slice_position = self.get_slice(r.puzzle_id, r.match)
             return r
         return None
@@ -107,7 +111,7 @@ class Db:
         block_id =  self.save_block(block)
         data.piece_position = block_id
         print(f"Saved block with id {block_id}")
-        print(f"Saving result for piece_id {data.piece_id} with match {data.match} and slice_count {data.slice_count}")
+        print(f"Saving result for piece_id {data.piece_id} with match {data.match} and slice_id {data.slice_id}")
         self.cursor.execute("INSERT INTO results (puzzle_id, piece_id, match,slice_id,piece_position) VALUES (?,?,?,?,?)",
         (data.puzzle_id, data.piece_id, data.match, data.slice_count, block_id))
         self.cursor.connection.commit()

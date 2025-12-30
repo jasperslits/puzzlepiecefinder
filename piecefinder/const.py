@@ -1,7 +1,6 @@
 """Consts."""
 from .enums import Algorithm
 
-UPLOAD_DIR = "snapshots"
 ALG = Algorithm.BF
 
 """PUZZLE data"""
@@ -15,8 +14,9 @@ PIECE_SOURCE = "source/piece/"
 ASSETDIR = "assets"
 
 """ Discard bad matches """
-TM_CUTOFF = 0.058
-SFBF_CUTOFF = 5
+TM_THRESHOLD = 0.058
+SFBF_THRESHOLD = 5
+OK_SCORE = 10
 
 """Server data"""
 HTTP_PORT = 8000

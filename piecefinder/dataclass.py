@@ -31,12 +31,15 @@ class BlockDto:
     height: int = 0
     score: float = 0.0
     slice_index: int = 0
+    algorithm: str = ""
+    filename: str = uuid4().hex + ".png"
 
 @dataclass
 class ResultDto:
     """Result class."""
     id: int
     slice_count: int = 0
+    slice_id: int = 0
     puzzle_id: int = 0
     piece_id: int = 0
     match: int = 0

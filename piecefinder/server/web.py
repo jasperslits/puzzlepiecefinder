@@ -1,7 +1,6 @@
 """"Asynchronous HTTP server for image uploads and retrievals."""
 
 import asyncio
-from datetime import datetime
 from email.parser import BytesParser
 from email.policy import default
 import json
@@ -102,22 +101,18 @@ async def handle_post(path: str, headers: dict, reader, writer):
         return
 
     puzzle_id = path.rstrip("/").split("/")[-1]
-    p = PieceDto()
-    p.puzzle_id = int(puzzle_id)
+    p = PieceDto(puzzle_id=int(puzzle_id), filename=filename)
     async with aiofiles.open(f"{ASSETDIR}/pieces/{p.filename}", mode='wb') as f:
         await f.write(image_data)
 
-    piece_id = Db ().save_piece(p)
-
-    date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    text = f"[{date_time}]Saved uploaded image as {p.filename} and processed piece."
+    piece_id = Db().save_piece(p)
     resp = {"piece_id": piece_id, "result": "OK"}
     await send_response(writer, 200, json.dumps(resp), content_type="application/json")
 
 
 async def handle_get(path: str, writer):
     """Handle GET requests."""
-
+    print("Processing GET request for path:", path)
     db = Db()
 
     if path.startswith("/proxy/history"):
@@ -136,14 +131,14 @@ async def handle_get(path: str, writer):
         m = ma.Matcher(piece.puzzle_id,piece.id,ALG)
         await m.processpiece(piece.filename)
         result_id = m.save_results()
-        result = {"result_id": result_id,"algorithm": ALG}
+        result = {"result_id": result_id,"algorithm": ALG.value}
         pieces_json = json.dumps(result)
         await send_response(writer, 200, pieces_json, content_type="application/json")
         return
 
     if path == "/proxy/puzzles":
         puzzles = db.get_puzzles_json()
-        print(puzzles)
+
         await send_response(writer, 200, puzzles, content_type="application/json")
         return
 
